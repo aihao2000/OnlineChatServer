@@ -102,7 +102,7 @@ namespace OnlineChatServer
             }
             return true;
         }
-        private string? ReceiveJsonString(TcpClient client)
+        private string ReceiveJsonString(TcpClient client)
         {
             byte[] buffer = buffers[client];
             NetworkStream clientStream = client.GetStream();
@@ -339,7 +339,7 @@ namespace OnlineChatServer
                 });
             }
         }
-        private string? AddFriend(TcpClient client, string id, string friend_id)
+        private string AddFriend(TcpClient client, string id, string friend_id)
         {
             if (databaseManager.AddFriend(id, friend_id))
             {
