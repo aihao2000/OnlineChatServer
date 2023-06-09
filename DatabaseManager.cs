@@ -59,7 +59,7 @@ namespace OnlineChatServer{
             }
             
         }
-        public string AddNewUser(string id,string password,string name="",string email="",string phone_number="",bool is_async=false)
+        public bool AddNewUser(string id,string password,string name="",string email="",string phone_number="",bool is_async=false)
         {
             using (SqliteCommand command=connection.CreateCommand())
             {
@@ -71,20 +71,21 @@ namespace OnlineChatServer{
                 command.Parameters.AddWithValue("@name", name);
                 command.Parameters.AddWithValue("@email", email);
                 command.Parameters.AddWithValue("@phone_number", phone_number);
-                if(is_async)
+                if(command.ExecuteNonQuery()>0)
                 {
-                    command.ExecuteNonQueryAsync();
+                    return true;
                 }
                 else
                 {
-                    command.ExecuteNonQuery();
+                    return false;
                 }
                 
             }
-            return "true";
         }
+        //返回json列表["a","b",...]
         public string GetFriendList(string id)
         {
+            
             using (SqliteCommand command=connection.CreateCommand())
             {
                 command.CommandText=
@@ -103,6 +104,45 @@ namespace OnlineChatServer{
                     return JsonSerializer.Serialize(friend_list);
                 }
             }
+        }
+        public bool AddFriend(string id,string friend_id)
+        {
+            using (SqliteCommand command=connection.CreateCommand())
+            {
+                command.CommandText=
+                @"INSERT INTO UserFriendList(id,friend_id)
+                VALUES(@id,@friend_id)";
+                command.Parameters.AddWithValue("@id",id);
+                command.Parameters.AddWithValue("@friend_list", friend_id);
+                if(command.ExecuteNonQuery()>0)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+        public string? GetPassword(string id)
+        {
+            using (SqliteCommand command=connection.CreateCommand())
+            {
+                command.CommandText=
+                @"SELECT password
+                  FROM  User
+                  WHERE @id=id";
+                command.Parameters.AddWithValue("@id",id);
+                using(SqliteDataReader reader=command.ExecuteReader())
+                {
+                    if(reader.Read())
+                    {
+                        string password=reader.GetString(0);
+                        return password;
+                    }
+                }
+            }
+            return null;
         }
         ~DatabaseManager()
         {

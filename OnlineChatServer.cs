@@ -16,6 +16,7 @@ namespace OnlineChatServer
         private TcpListener listener;
         private ConcurrentDictionary<string, TcpClient> clients = new ConcurrentDictionary<string, TcpClient>();
         private Dictionary<TcpClient, byte[]> buffers = new Dictionary<TcpClient, byte[]>();
+        private Dictionary<string, List<string>> WaitingMessage = new Dictionary<string, List<string>>();
         private volatile bool isRunning = false;
 
         public delegate void SignEventHandler(object sender, string name);
@@ -75,7 +76,7 @@ namespace OnlineChatServer
                 {
                     return;
                 }
-                string? result = ExecuteFuncByJsonAndReturnJsonResult(json);
+                string? result = ExecuteFuncByJsonAndReturnJsonResult(client, json);
                 if (result != null)
                 {
                     SendJson(client, result);
@@ -114,8 +115,7 @@ namespace OnlineChatServer
             {
                 return null;
             }
-            string s = Encoding.UTF8.GetString(buffer, 0, byteReceived);
-            return s;
+            return Encoding.UTF8.GetString(buffer, 0, byteReceived);
         }
         public bool IsConnected(string id)
         {
@@ -130,6 +130,7 @@ namespace OnlineChatServer
             }
         }
         public bool IsConnected(TcpClient client)
+
         {
             byte[] buffer = new byte[0];
             if (client.Client != null)
@@ -141,6 +142,10 @@ namespace OnlineChatServer
             {
                 return false;
             }
+        }
+        private bool IsOnline(string name)
+        {
+            return clients.ContainsKey(name) && IsConnected(clients[name]);
         }
         void RemoveInvalidClient()
         {
@@ -174,9 +179,10 @@ namespace OnlineChatServer
                 RemoveInvalidClient();
             }
         }
-        public string? ExecuteFuncByJsonAndReturnJsonResult(string json)
+
+        public string? ExecuteFuncByJsonAndReturnJsonResult(TcpClient client, string json)
         {
-            Console.WriteLine("Execute:"+json);
+            Console.WriteLine("Execute:" + json);//TODO：删除或改成线程安全的日志写入
             using (JsonDocument doc = JsonDocument.Parse(json))
             {
                 JsonElement methodNameElement;
@@ -185,7 +191,7 @@ namespace OnlineChatServer
                     return null;
                 }
                 string methodName = methodNameElement.ToString();
-                MethodInfo? method = GetType().GetMethod(methodName,BindingFlags.Instance | BindingFlags.NonPublic);
+                MethodInfo? method = GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
                 if (method == null)
                 {
                     Console.WriteLine("method == null");
@@ -197,6 +203,7 @@ namespace OnlineChatServer
                     return null;
                 }
                 List<object> methodParams = new List<object>();
+                methodParams.Add(client);
                 foreach (JsonElement param in methodParamsElement.EnumerateArray())
                 {
                     switch (param.ValueKind)
@@ -222,25 +229,122 @@ namespace OnlineChatServer
             }
 
         }
-        private string GetFriendList(string id)
+        private string GetFriendList(TcpClient client, string id)
         {
-            return databaseManager.GetFriendList(id);
+            if (client != clients[id])
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    methodName = "GetFriendList",
+                    result = "客户端不匹配"
+                });
+            }
+            return JsonSerializer.Serialize(new
+                {
+                    methodName = "GetFriendList",
+                    result = databaseManager.GetFriendList(id)
+                });
         }
-        private string SignIn(string name, string password)
+        private string SignIn(TcpClient client, string id, string password)
         {
-            return "";
+            string correctPassword = databaseManager.GetPassword(id);
+            if (correctPassword == null)
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    methodName = "SignIn",
+                    result = "账号不存在"
+                });
+            }
+            else if (correctPassword == password)
+            {
+                clients[id] = client;
+                return JsonSerializer.Serialize(new
+                {
+                    methodName = "SignIn",
+                    result = "登录成功"
+                });
+            }
+            else
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    methodName = "SignIn",
+                    result = "密码错误"
+                });
+            }
         }
-        private string SignUp(string id, string password, string name, string phone_number)
+        private string SignUp(TcpClient client, string id, string password, string name, string phone_number)
         {
-            return databaseManager.AddNewUser(id, password, name, phone_number);
+            if (databaseManager.AddNewUser(id, password, name, phone_number))
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    methodName = "SignUp",
+                    result = "注册成功"
+                });
+            }
+            else
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    methodName = "SignUp",
+                    result = "注册成功"
+                });
+            }
         }
-        private string SendMessage(string id, string friend_id)
+
+        private string SendMessage(TcpClient client, string id, string friend_id, string message)
         {
-            return "";
+            if (client != clients[id])
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    methodName = "SendMessage",
+                    result = "客户端不匹配"
+                });
+            }
+            if (IsOnline(friend_id))
+            {
+                SendJson(clients[friend_id], JsonSerializer.Serialize(new
+                {
+                    methodName = "ReceiveMessage",
+                    senderName = id,
+                    message = message
+                }));
+                return JsonSerializer.Serialize(new
+                {
+                    methodName = "SendMessage",
+                    result = "发送成功"
+                });
+            }
+            else
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    methodName = "SendMessage",
+                    result = "发送成功但是对方不在线"
+                });
+            }
         }
-        private string TmpFunc(string a, string b)
+        private string? AddFriend(TcpClient client, string id, string friend_id)
         {
-            return a + ":" + b;
+            if (databaseManager.AddFriend(id, friend_id))
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    methodName = "AddFriend",
+                    result = "添加成功"
+                });
+            }
+            else
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    methodName = "AddFriend",
+                    result = "添加失败"
+                });
+            }
         }
     }
 }
