@@ -1,15 +1,17 @@
 using Microsoft.Data.Sqlite;
+using System.Text.Json;
 namespace OnlineChatServer{
     class DatabaseManager
     {
         SqliteConnection connection;
-        public DatabaseManager(){
-
+        public bool Start()
+        {
             connection=new SqliteConnection("Data Source=OnlineChat.db");
             connection.Open();
             Console.WriteLine("连接成功");
             CreateuUserInformationTable();
             CreateUserFriendListTable();
+            return true;
         }
         private void CreateUserFriendListTable(bool is_async=false)
         {
@@ -57,7 +59,7 @@ namespace OnlineChatServer{
             }
             
         }
-        public void AddNewUser(string id,string password,string name="",string email="",string phone_number="",bool is_async=false)
+        public string AddNewUser(string id,string password,string name="",string email="",string phone_number="",bool is_async=false)
         {
             using (SqliteCommand command=connection.CreateCommand())
             {
@@ -79,8 +81,9 @@ namespace OnlineChatServer{
                 }
                 
             }
+            return "true";
         }
-        public List<string> GetFriendList(string id)
+        public string GetFriendList(string id)
         {
             using (SqliteCommand command=connection.CreateCommand())
             {
@@ -97,7 +100,7 @@ namespace OnlineChatServer{
                         string name=reader.GetString(0);
                         friend_list.Add(name);
                     }
-                    return friend_list;
+                    return JsonSerializer.Serialize(friend_list);
                 }
             }
         }
