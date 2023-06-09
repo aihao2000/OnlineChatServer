@@ -16,7 +16,7 @@ namespace OnlineChatServer
         private TcpListener listener;
         private ConcurrentDictionary<string, TcpClient> clients = new ConcurrentDictionary<string, TcpClient>();
         private Dictionary<TcpClient, byte[]> buffers = new Dictionary<TcpClient, byte[]>();
-        private Dictionary<string, List<string>> WaitingMessage = new Dictionary<string, List<string>>();
+        private Dictionary<string, List<Tuple<string, string>>> waitingMessage = new Dictionary<string, List<Tuple<string, string>>>();
         private volatile bool isRunning = false;
 
         public delegate void SignEventHandler(object sender, string name);
@@ -240,10 +240,10 @@ namespace OnlineChatServer
                 });
             }
             return JsonSerializer.Serialize(new
-                {
-                    methodName = "GetFriendList",
-                    result = databaseManager.GetFriendList(id)
-                });
+            {
+                methodName = "GetFriendList",
+                result = databaseManager.GetFriendList(id)
+            });
         }
         private string SignIn(TcpClient client, string id, string password)
         {
@@ -259,6 +259,12 @@ namespace OnlineChatServer
             else if (correctPassword == password)
             {
                 clients[id] = client;
+                if (waitingMessage.ContainsKey(id))
+                {
+                    //TODO:客户端注意验证
+                    SendJson(client, JsonSerializer.Serialize(waitingMessage[id]));
+                    waitingMessage.Remove(id);
+                }
                 return JsonSerializer.Serialize(new
                 {
                     methodName = "SignIn",
@@ -320,8 +326,14 @@ namespace OnlineChatServer
             }
             else
             {
+                if (!waitingMessage.ContainsKey(friend_id))
+                {
+                    waitingMessage[friend_id] = new List<Tuple<string, string>>();
+                }
+                waitingMessage[friend_id].Add(Tuple.Create(id, message));
                 return JsonSerializer.Serialize(new
                 {
+
                     methodName = "SendMessage",
                     result = "发送成功但是对方不在线"
                 });
