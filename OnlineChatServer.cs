@@ -3,21 +3,23 @@ using System.Net.Sockets;
 using System.Net;
 using System.Text;
 using System.Collections.Concurrent;
+using Microsoft.Data.Sqlite;
 
-namespace ChatServer
+namespace OnlineChatServer
 {
     class ChatServer
     {
         private TcpListener listener;
-        private ConcurrentDictionary<string, TcpClient> clients=new ConcurrentDictionary<string, TcpClient>();
+        private ConcurrentDictionary<string, TcpClient> clients = new ConcurrentDictionary<string, TcpClient>();
         private bool isRunning = false;
         private Thread serviceThread;
 
         public delegate void SignEventHandler(object sender, string name);
         public event SignEventHandler SignInEvent;
         public event SignEventHandler SignOutEvent;
-        public delegate void StartServiceEventHandler(object sender,bool isSucceed,string errorMessage);
+        public delegate void StartServiceEventHandler(object sender, bool isSucceed, string errorMessage);
         public event StartServiceEventHandler StartServiceEvent;
+        private SqliteConnection databaseConn=new SqliteConnection("Data Source=hello.db");
         public void Start(string ip, int port)
         {
             if (isRunning)
@@ -36,16 +38,15 @@ namespace ChatServer
                 Task.Run(Maintain);
                 if (StartServiceEvent != null)
                 {
-                    StartServiceEvent(this, true,"");
+                    StartServiceEvent(this, true, "");
                 }
             }
             catch (Exception ex)
             {
-                if(StartServiceEvent!= null)
+                if (StartServiceEvent != null)
                 {
-                    StartServiceEvent(this, false,ex.Message);
+                    StartServiceEvent(this, false, ex.Message);
                 }
-                
             }
         }
         public void End()
@@ -71,7 +72,7 @@ namespace ChatServer
         private string GetName(TcpClient client)
         {
             string name = "";
-            if(client.Client!=null)
+            if (client.Client != null)
             {
                 name = client.Client.RemoteEndPoint.ToString();
             }
@@ -81,8 +82,8 @@ namespace ChatServer
         {
             NetworkStream clientStream = client.GetStream();
             byte[] buffer = new byte[1024];
-            string name=GetName(client);
-            byte[] nameBytes=Encoding.UTF8.GetBytes(name);
+            string name = GetName(client);
+            byte[] nameBytes = Encoding.UTF8.GetBytes(name);
             while (clientStream.CanRead)
             {
                 int byteReceived;
@@ -96,7 +97,7 @@ namespace ChatServer
                 }
                 string s1 = Encoding.UTF8.GetString(nameBytes);
                 string s2 = Encoding.UTF8.GetString(buffer, 0, byteReceived);
-                Console.WriteLine(s1+":"+s2);
+                Console.WriteLine(s1 + ":" + s2);
                 foreach (TcpClient otherClient in clients.Values)
                 {
                     if (otherClient != client)
@@ -106,9 +107,9 @@ namespace ChatServer
                         {
                             try
                             {
-                                otherClientStream.Write(nameBytes,0,nameBytes.Length);
+                                otherClientStream.Write(nameBytes, 0, nameBytes.Length);
                                 otherClientStream.Write(buffer, 0, byteReceived);
-                                Console.WriteLine("write to"+GetName(otherClient));
+                                Console.WriteLine("write to" + GetName(otherClient));
                             }
                             catch
                             {
@@ -148,7 +149,7 @@ namespace ChatServer
                 {
                     clients.TryRemove(invalidClientName, out _);
                     SignOutEvent(this, invalidClientName);
-                    
+
                 }
                 catch (Exception ex)
                 {
