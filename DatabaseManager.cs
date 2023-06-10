@@ -60,19 +60,28 @@ namespace OnlineChatServer
             }
 
         }
-        public bool AddNewUser(string id, string password, string name = "", string email = "", string phone_number = "", bool is_async = false)
+        public bool AddNewUser(string id, string password, string name = "", string phone_number = "" ,string email = "" , bool is_async = false)
         {
             using (SqliteCommand command = connection.CreateCommand())
             {
                 command.CommandText =
                 @"INSERT INTO UserInfo(id,password,name,email,phone_number)
-                VALUES(@id,@password,@name,,@email,@phone_number)";
+                VALUES(@id,@password,@name,@email,@phone_number)";
                 command.Parameters.AddWithValue("@id", id);
                 command.Parameters.AddWithValue("@password", password);
                 command.Parameters.AddWithValue("@name", name);
                 command.Parameters.AddWithValue("@email", email);
                 command.Parameters.AddWithValue("@phone_number", phone_number);
-                if (command.ExecuteNonQuery() > 0)
+                int res=0;
+                try
+                {
+                    res=command.ExecuteNonQuery();
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+                if (res > 0)
                 {
                     return true;
                 }
@@ -84,7 +93,7 @@ namespace OnlineChatServer
             }
         }
         //返回json列表["a","b",...]
-        public string GetFriendList(string id)
+        public List<string> GetFriendList(string id)
         {
 
             using (SqliteCommand command = connection.CreateCommand())
@@ -102,7 +111,7 @@ namespace OnlineChatServer
                         string name = reader.GetString(0);
                         friend_list.Add(name);
                     }
-                    return JsonSerializer.Serialize(friend_list);
+                    return friend_list;
                 }
             }
         }
@@ -114,8 +123,17 @@ namespace OnlineChatServer
                 @"INSERT INTO UserFriendList(id,friend_id)
                 VALUES(@id,@friend_id)";
                 command.Parameters.AddWithValue("@id", id);
-                command.Parameters.AddWithValue("@friend_list", friend_id);
-                if (command.ExecuteNonQuery() > 0)
+                command.Parameters.AddWithValue("@friend_id", friend_id);
+                int res=0;
+                try
+                {
+                    res=command.ExecuteNonQuery();
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+                if (res > 0)
                 {
                     return true;
                 }
@@ -131,7 +149,7 @@ namespace OnlineChatServer
             {
                 command.CommandText =
                 @"SELECT password
-                  FROM  User
+                  FROM  UserInfo
                   WHERE @id=id";
                 command.Parameters.AddWithValue("@id", id);
                 using (SqliteDataReader reader = command.ExecuteReader())
