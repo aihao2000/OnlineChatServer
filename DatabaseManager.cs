@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using System.Text.Json;
+using System.Diagnostics;
 namespace OnlineChatServer
 {
     class DatabaseManager
@@ -26,16 +27,22 @@ namespace OnlineChatServer
                 FOREIGN KEY(id) REFERENCES UserInfo(id),
                 FOREIGN KEY(friend_id) REFERENCES UserInfo(id)
                 )";
-                if (is_async)
+                try
                 {
-                    command.ExecuteNonQueryAsync();
+                    if (is_async)
+                    {
+                        command.ExecuteNonQueryAsync();
+                    }
+                    else
+                    {
+                        command.ExecuteNonQuery();
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    command.ExecuteNonQuery();
+                    Console.WriteLine(ex.Message);
                 }
             }
-
         }
         public void CreateuUserInformationTable(bool is_async = false)
         {
@@ -60,7 +67,7 @@ namespace OnlineChatServer
             }
 
         }
-        public bool AddNewUser(string id, string password, string name = "", string phone_number = "" ,string email = "" , bool is_async = false)
+        public bool AddNewUser(string id, string password, string name = "", string phone_number = "", string email = "", bool is_async = false)
         {
             using (SqliteCommand command = connection.CreateCommand())
             {
@@ -72,16 +79,16 @@ namespace OnlineChatServer
                 command.Parameters.AddWithValue("@name", name);
                 command.Parameters.AddWithValue("@email", email);
                 command.Parameters.AddWithValue("@phone_number", phone_number);
-                int res=0;
+                int resCount = 0;
                 try
                 {
-                    res=command.ExecuteNonQuery();
+                    resCount = command.ExecuteNonQuery();
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Console.WriteLine(ex.Message);
                 }
-                if (res > 0)
+                if (resCount > 0)
                 {
                     return true;
                 }
@@ -95,7 +102,6 @@ namespace OnlineChatServer
         //返回json列表["a","b",...]
         public List<string> GetFriendList(string id)
         {
-
             using (SqliteCommand command = connection.CreateCommand())
             {
                 command.CommandText =
@@ -124,12 +130,12 @@ namespace OnlineChatServer
                 VALUES(@id,@friend_id)";
                 command.Parameters.AddWithValue("@id", id);
                 command.Parameters.AddWithValue("@friend_id", friend_id);
-                int res=0;
+                int res = 0;
                 try
                 {
-                    res=command.ExecuteNonQuery();
+                    res = command.ExecuteNonQuery();
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Console.WriteLine(ex.Message);
                 }
@@ -152,13 +158,74 @@ namespace OnlineChatServer
                   FROM  UserInfo
                   WHERE @id=id";
                 command.Parameters.AddWithValue("@id", id);
-                using (SqliteDataReader reader = command.ExecuteReader())
+                try
                 {
-                    if (reader.Read())
+                    using (SqliteDataReader reader = command.ExecuteReader())
                     {
-                        string password = reader.GetString(0);
-                        return password;
+                        if (reader.Read())
+                        {
+                            string password = reader.GetString(0);
+                            return password;
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+            return null;
+        }
+        public string? GetUserName(string id)
+        {
+            using (SqliteCommand command = connection.CreateCommand())
+            {
+                command.CommandText =
+                @"SELECT name
+                  FROM  UserInfo
+                  WHERE @id=id";
+                command.Parameters.AddWithValue("@id", id);
+                try
+                {
+                    using (SqliteDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            string password = reader.GetString(0);
+                            return password;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+            return null;
+        }
+        public string? GetEmail(string id)
+        {
+            using (SqliteCommand command = connection.CreateCommand())
+            {
+                command.CommandText =
+                @"SELECT name
+                  FROM  Email
+                  WHERE @id=id";
+                command.Parameters.AddWithValue("@id", id);
+                try
+                {
+                    using (SqliteDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            string password = reader.GetString(0);
+                            return password;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
                 }
             }
             return null;
