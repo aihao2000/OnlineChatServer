@@ -1,115 +1,50 @@
 # OnlineChatServer
 
-基于socket的在线聊天室
+基于socket TCP 的在线聊天室。
 
-客户端使用socket连接服务器程序,可远程调用OnlineChatServer.下ChatServer类中，权限满足的所有函数，使用json为单位进行通讯
+数据库使用Sqlite。
 
-### 服务
+客户端使用socket连接服务器程序。
 
-使用以下格式进行rpc，忽略第一个参数TcpClient
+以json为基本单位进行通讯，通过括号匹配处理粘包问题。
+
+使用c#反射机制实现了json rpc。可远程调用OnlineChatServer.下ChatServer类中，权限满足的所有函数即服务，并以json的形式返回函数的返回值到客户端，以RequestID对应。
+
+并且可以方便使用监听者模式扩展开发，订阅相关事件即可。
+
+基础功能包含：
+
+- 账号注册
+- 登录
+- 添加好友
+- 查看好友列表
+- 向好友发送信息
+
+## 扩展开发
+
+在后端实现任意函数，第一个参数必须是TcpClient，可通过以下json形式调用
 
 ````json
-{
-    "methodName":method_name,
-    "methodParams":[
-        para1,
-        para2
-    ]
-}
+{ RequestID = requestID, MethodName = methodName, MethodParams = new[] { para1, para2,... } }
 ````
 
 函数的返回值将封装为json发送向客户端，具体结构请参考函数返回值的具体编写，通常结构为
 
 ```json
 {
-    "methodName" = method_name_called,
-    "result"=result
+    "Type" = "response",
+    "Value" = return_value
 }
 ```
 
-简单示例程序如
+## 使用客户端SDK使服务应用于任意客户端
 
-```c#
-// See https://aka.ms/new-console-template for more information
-using System;
-using System.Net.Sockets;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
+简单示例见https://github.com/AisingioroHao0/OnlineChatConsoleClient
 
-var server = new TcpClient();
-server.Connect("120.53.14.170", 21101);
-void ListenAndPrint()
-{
-    byte[] buffer = new byte[1024];
-    while (true)
-    {
-        int len = server.GetStream().Read(buffer, 0, buffer.Length);
-        string str = Encoding.UTF8.GetString(buffer, 0, len);
-        Console.WriteLine(str);
-    }
-}
-Task.Run(ListenAndPrint);
-void SignUp(string id, string password, string name, string phone_number)
-{
-    string str = JsonSerializer.Serialize(new
-    {
-        methodName = "SignUp",
-        methodParams = new[] { id, password, name, phone_number }
-    });
-    byte[] bytes = Encoding.UTF8.GetBytes(str);
-    server.GetStream().Write(bytes, 0, bytes.Length);
-}
-void SignIn(string id, string password)
-{
-    string str = JsonSerializer.Serialize(new
-    {
-        methodName = "SignIn",
-        methodParams = new[] { id, password }
-    });
-    byte[] bytes = Encoding.UTF8.GetBytes(str);
-    server.GetStream().Write(bytes, 0, bytes.Length);
-}
-void AddFriend(string id, string friend_id)
-{
-    string str = JsonSerializer.Serialize(new
-    {
-        methodName = "AddFriend",
-        methodParams = new[] { id, friend_id }
-    });
-    byte[] bytes = Encoding.UTF8.GetBytes(str);
-    server.GetStream().Write(bytes, 0, bytes.Length);
-}
-void GetFriendList(string id)
-{
-    string str = JsonSerializer.Serialize(new
-    {
-        methodName = "GetFriendList",
-        methodParams = new[] { id }
-    });
-    byte[] bytes = Encoding.UTF8.GetBytes(str);
-    server.GetStream().Write(bytes, 0, bytes.Length);
-}
-void SendMessage(string id,string friend_id,string message)
-{
-    string str = JsonSerializer.Serialize(new
-    {
-        methodName = "GetFriendList",
-        methodParams = new[] { id ,friend_id,message}
-    });
-    byte[] bytes = Encoding.UTF8.GetBytes(str);
-    server.GetStream().Write(bytes, 0, bytes.Length);
-}
-SignUp("id1", "password", "name", "phone_number");
-SignUp("id2", "password", "name", "phone_number");
-SignIn("id", "password");
-AddFriend("id1", "id2");
-GetFriendList("id1");
-SendMessage("id1", "id2", "message");
-while(true)
-{
+复制示例中的OnlineChatClientSDK，直接引入,创捷实例，调用连接，然后执行符合直觉的方法即可，将自动开启一个子线程用于与服务器通信，并使用线程安全的中间件保留服务器发送的数据，暴露方法为阻塞方法，将会直到接收到响应为止。
 
-}
+登录后的信息主要存于userInfo
 
-```
+好友列表自动存于friendList
 
+收到的消息自动存于messages
