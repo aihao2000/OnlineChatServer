@@ -397,11 +397,11 @@ namespace OnlineChatServer
         {
             if (databaseManager.AddFriend(id, friend_id))
             {
-                return JsonSerializer.Serialize(new { RequestID=requestID,Type = "AddFriend", Value = 1 });
+                return JsonSerializer.Serialize(new { RequestID=requestID,Type = "response", Value = 1 });
             }
             else
             {
-                return JsonSerializer.Serialize(new { RequestID=requestID,Type = "AddFriend", Value = 0 });
+                return JsonSerializer.Serialize(new { RequestID=requestID,Type = "response", Value = 0 });
             }
         }
     }
